@@ -185,13 +185,13 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
         if (scale == 1f && angle <= 0) return bitmap
         return try {
             val matrix = Matrix()
+            //双线性压缩
+            if (scale != 1f) {
+                matrix.setScale(scale, scale)
+            }
             //旋转角度处理
             if (angle > 0) {
                 matrix.postRotate(angle.toFloat())
-            }
-            //双线性压缩
-            if (scale != 1f) {
-                matrix.postScale(scale, scale)
             }
             Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         } finally {
