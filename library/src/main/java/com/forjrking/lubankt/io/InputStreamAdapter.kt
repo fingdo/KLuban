@@ -18,6 +18,8 @@ abstract class InputStreamAdapter<T> : InputStreamProvider<T> {
     @Throws(IOException::class)
     abstract fun openInternal(): InputStream
 
+    abstract fun fileSizeInternal(): Long
+
     @Throws(IOException::class)
     override fun rewindAndGet(): InputStream {
         if (::inputStream.isInitialized) {
@@ -27,6 +29,10 @@ abstract class InputStreamAdapter<T> : InputStreamProvider<T> {
 //            inputStream.mark(MARK_READ_LIMIT)
         }
         return inputStream
+    }
+
+    override fun getFileSize(): Long {
+        return fileSizeInternal()
     }
 
     override fun close() {

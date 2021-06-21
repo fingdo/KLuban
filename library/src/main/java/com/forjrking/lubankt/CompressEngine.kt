@@ -12,8 +12,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import kotlin.jvm.Throws
-import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
@@ -36,10 +34,12 @@ import kotlin.math.min
  * @Version: 1.0.0
  * <lp>
 </lp> */
-class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, private val resFile: File,
-                                 private val compress4Sample: Boolean, private val rqSize: Long,
-                                 private val quality: Int, private val compressFormat: CompressFormat,
-                                 private val compressConfig: Bitmap.Config) {
+class CompressEngine constructor(
+    private val srcStream: InputStreamProvider<*>, private val resFile: File,
+    private val compress4Sample: Boolean, private val rqSize: Long,
+    private val quality: Int, private val compressFormat: CompressFormat,
+    private val compressConfig: Bitmap.Config
+) {
 
     @WorkerThread
     @Throws(IOException::class)
@@ -57,7 +57,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
         val height = options.outHeight
         //默认采样率 采样率是2的次幂
         val scale = if (compress4Sample) {
-            options.inSampleSize = computeSampleSize(width, height)
+            options.inSampleSize = computeSampleSize(srcStream.getFileSize())
             1f
         } else {
             options.inSampleSize = 0
@@ -91,7 +91,7 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
         options.inTempStorage = bytes4Option
         //此处OOM
         var bitmap = BitmapFactory.decodeStream(srcStream.rewindAndGet(), null, options)
-                ?: throw IOException("decodeStream error")
+            ?: throw IOException("decodeStream error")
         //处理角度和缩放
         bitmap = transformBitmap(bitmap, scale, angle)
         // 获取解析流
@@ -99,12 +99,16 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
         try {//质量压缩开始
             bitmap.compress(compressFormat, quality, stream)
             //PNG等无损格式不支持压缩
-            if (compressFormat != CompressFormat.PNG) {
+            if (options.inSampleSize <= 1 && compressFormat != CompressFormat.PNG) {
                 var tempQuality = quality
                 //耗时由此处触发 每次降低6个点  图像显示效果和大小不能同时兼得 这里还要优化
                 while (stream.size() / 1024 > (rqSize * scale) && tempQuality > 6) {
+                    tempQuality -= if (stream.size() / 1024 > 10 * 1024) {
+                        12
+                    } else {
+                        6
+                    }
                     stream.reset()
-                    tempQuality -= 6
                     bitmap.compress(compressFormat, tempQuality, stream)
                 }
                 Checker.logger("真实输出质量$tempQuality")
@@ -128,26 +132,17 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
     /**
      * 邻近采样率  核心算法(来自 luban)
      */
-    private fun computeSampleSize(width: Int, height: Int): Int {
-        val srcWidth = if (width % 2 == 1) width + 1 else width
-        val srcHeight = if (height % 2 == 1) height + 1 else height
-        val longSide: Int = max(srcWidth, srcHeight)
-        val shortSide: Int = min(srcWidth, srcHeight)
-        val scale = shortSide.toFloat() / longSide
-        return if (scale <= 1 && scale > 0.5625) {
-            if (longSide < 1664) {
-                1
-            } else if (longSide < 4990) {
-                2
-            } else if (longSide in 4991..10239) {
+    private fun computeSampleSize(fileSize: Long): Int {
+        return when {
+            fileSize > 100 * 1024 * 1024L -> { // 大于100M的照片
                 4
-            } else {
-                if (longSide / 1280 == 0) 1 else longSide / 1280
             }
-        } else if (scale <= 0.5625 && scale > 0.5) {
-            if (longSide / 1280 == 0) 1 else longSide / 1280
-        } else {
-            ceil(longSide / (1280.0 / scale)).toInt()
+            fileSize > 40 * 1024 * 1024L -> { // 40~100M的照片
+                2
+            }
+            else -> {
+                1
+            }
         }
     }
 
@@ -203,13 +198,13 @@ class CompressEngine constructor(private val srcStream: InputStreamProvider<*>, 
      * 判断内存是否足够 32位每个像素占用4字节
      */
     private fun hasEnoughMemory(width: Int, height: Int, isAlpha32: Boolean) =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                true
-            } else {
-                val runtime = Runtime.getRuntime()
-                val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
-                val allocation = width * height shl if (isAlpha32) 2 else 1
-                Checker.logger("free : " + (free shr 20) + "MB, need : " + (allocation shr 20) + "MB")
-                allocation < free
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            true
+        } else {
+            val runtime = Runtime.getRuntime()
+            val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
+            val allocation = width * height shl if (isAlpha32) 2 else 1
+            Checker.logger("free : " + (free shr 20) + "MB, need : " + (allocation shr 20) + "MB")
+            allocation < free
+        }
 }

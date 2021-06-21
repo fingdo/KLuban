@@ -13,6 +13,7 @@ import kotlin.jvm.Throws
 interface InputStreamProvider<T> {
     @Throws(IOException::class)
     fun rewindAndGet(): InputStream
+    fun getFileSize(): Long
     fun close()
     val src: T //源数据
 }

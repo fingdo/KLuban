@@ -1,5 +1,6 @@
 package com.forjrking.lubankt
 
+import android.content.res.AssetFileDescriptor
 import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
@@ -27,7 +28,7 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
-import kotlin.jvm.Throws
+
 
 /**
  * @description:
@@ -75,8 +76,36 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                 return transform.invoke(src)
             }
 
+            override fun fileSizeInternal(): Long {
+                return when (src) {
+                    is String -> {
+                        File(src as String).length()
+                    }
+                    is File -> {
+                        (src as File).length()
+                    }
+                    is Uri -> {
+                        val afd: AssetFileDescriptor? =
+                            Checker.context.contentResolver.openAssetFileDescriptor(
+                                src as Uri,
+                                "r"
+                            )
+                        val fileSize = afd?.length ?: 0L
+                        afd?.close()
+                        fileSize
+                    }
+                    is Bitmap -> {
+                        (src as Bitmap).byteCount.toLong()
+                    }
+                    else -> {
+                        throw IOException("Incoming data type exception, it must be String, File, Uri")
+                    }
+                }
+            }
+
             override val src: T
                 get() = ts
+
         }
 
         return SingleRequestBuild(owner, provider)
@@ -107,6 +136,34 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                             (src as Bitmap).compress(CompressFormat.JPEG, 100, os)
                             (src as Bitmap).recycle();
                             ByteArrayInputStream(os.toByteArray())
+                        }
+                        else -> {
+                            throw IOException("Incoming data type exception, it must be String, File, Uri")
+                        }
+                    }
+                }
+
+                @Throws(IOException::class)
+                override fun fileSizeInternal(): Long {
+                    return when (src) {
+                        is String -> {
+                            File(src as String).length()
+                        }
+                        is File -> {
+                            (src as File).length()
+                        }
+                        is Uri -> {
+                            val afd: AssetFileDescriptor? =
+                                Checker.context.contentResolver.openAssetFileDescriptor(
+                                    src as Uri,
+                                    "r"
+                                )
+                            val fileSize = afd?.length ?: 0L
+                            afd?.close()
+                            fileSize
+                        }
+                        is Bitmap -> {
+                            (src as Bitmap).byteCount.toLong()
                         }
                         else -> {
                             throw IOException("Incoming data type exception, it must be String, File, Uri")
@@ -248,8 +305,10 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
                     1
                 }
             }
-            val threadPoolExecutor = ThreadPoolExecutor(corePoolSize, corePoolSize,
-                    5L, TimeUnit.SECONDS, LinkedBlockingQueue<Runnable>(), CompressThreadFactory())
+            val threadPoolExecutor = ThreadPoolExecutor(
+                corePoolSize, corePoolSize,
+                5L, TimeUnit.SECONDS, LinkedBlockingQueue<Runnable>(), CompressThreadFactory()
+            )
             // DES：预创建线程 threadPoolExecutor.prestartAllCoreThreads()
             // DES：让核心线程也可以回收
             threadPoolExecutor.allowCoreThreadTimeOut(true)
@@ -280,54 +339,66 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
     //挂起函数
     @Suppress("BlockingMethodInNonBlockingContext")
     @Throws(Throwable::class)
-    protected suspend fun compress(stream: InputStreamProvider<T>): File = withContext(supportDispatcher) {
-        return@withContext try {
-            if (mOutPutDir.isNullOrEmpty()) {
-                mOutPutDir = Checker.getCacheDir(Checker.context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
+    protected suspend fun compress(stream: InputStreamProvider<T>): File =
+        withContext(supportDispatcher) {
+            return@withContext try {
+                if (mOutPutDir.isNullOrEmpty()) {
+                    mOutPutDir =
+                        Checker.getCacheDir(Checker.context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
+                }
+                //后缀处理
+                val srcStream = stream.rewindAndGet()
+                val length = srcStream.available()
+                val type = Checker.getType(srcStream)
+                //组合一个名字给输出文件
+                val cacheName = "${System.nanoTime()}.${type.suffix}"
+                val cacheFile = "$mOutPutDir/${mRenamePredicate?.invoke(cacheName) ?: cacheName}"
+                //重命名接口
+                val outFile = File(cacheFile)
+                //如果没有指定format 智能获取解码结果
+                val format = mCompressFormat ?: type.format
+                //图片是否带有透明层
+                val decodeConfig =
+                    if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
+                Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出格式:$format 输出文件:$outFile")
+                //判断过滤器 开始压缩
+                if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
+                    val compressEngine = CompressEngine(
+                        stream,
+                        outFile,
+                        mCompress4Sample,
+                        mIgnoreSize,
+                        bestQuality,
+                        format,
+                        decodeConfig
+                    )
+                    val outFile = compressEngine.compress()
+                    if (mCopyExif) {
+                        Checker.copyExifData(stream.rewindAndGet(), outFile)
+                    }
+                    outFile
+                } else {
+                    //copy文件到临时文件
+                    FileOutputStream(outFile).use { fos ->
+                        stream.rewindAndGet().copyTo(fos)
+                    }
+                    if (mCopyExif) {
+                        Checker.copyExifData(stream.rewindAndGet(), outFile)
+                    }
+                    outFile
+                }
+            } finally {
+                stream.close()
             }
-            //后缀处理
-            val srcStream = stream.rewindAndGet()
-            val length = srcStream.available()
-            val type = Checker.getType(srcStream)
-            //组合一个名字给输出文件
-            val cacheName = "${System.nanoTime()}.${type.suffix}"
-            val cacheFile = "$mOutPutDir/${mRenamePredicate?.invoke(cacheName) ?: cacheName}"
-            //重命名接口
-            val outFile = File(cacheFile)
-            //如果没有指定format 智能获取解码结果
-            val format = mCompressFormat ?: type.format
-            //图片是否带有透明层
-            val decodeConfig = if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
-            Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出格式:$format 输出文件:$outFile")
-            //判断过滤器 开始压缩
-            if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
-                val compressEngine = CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig)
-                val outFile = compressEngine.compress()
-                if(mCopyExif) {
-                    Checker.copyExifData(stream.rewindAndGet(), outFile)
-                }
-                outFile
-            } else {
-                //copy文件到临时文件
-                FileOutputStream(outFile).use { fos ->
-                    stream.rewindAndGet().copyTo(fos)
-                }
-                if(mCopyExif) {
-                    Checker.copyExifData(stream.rewindAndGet(), outFile)
-                }
-                outFile
-            }
-        } finally {
-            stream.close()
         }
-    }
 }
 
 
 /**
  * @Des: 用于单个文件压缩
  **/
-private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputStreamAdapter<T>) : AbstractFileBuilder<T, File>(owner) {
+private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputStreamAdapter<T>) :
+    AbstractFileBuilder<T, File>(owner) {
     override fun get(): File = runBlocking {
         compress(provider)
     }
@@ -337,22 +408,25 @@ private class SingleRequestBuild<T>(owner: LifecycleOwner, val provider: InputSt
             flow {
                 emit(compress(provider))
             }.flowOn(supportDispatcher)
-                    .onStart {
-                        liveData.value = State.Start
-                    }.onCompletion {
-                        liveData.value = State.Completion
-                    }.catch {
-                        //报错后将传出去
-                        liveData.value = State.Error(it, provider.src)
-                    }.collect {
-                        liveData.value = State.Success(it)
-                    }
+                .onStart {
+                    liveData.value = State.Start
+                }.onCompletion {
+                    liveData.value = State.Completion
+                }.catch {
+                    //报错后将传出去
+                    liveData.value = State.Error(it, provider.src)
+                }.collect {
+                    liveData.value = State.Success(it)
+                }
         }
     }
 }
 
 //多文件压缩实现
-private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: MutableList<InputStreamProvider<T>>) : AbstractFileBuilder<T, List<File>>(owner) {
+private class MultiRequestBuild<T>(
+    owner: LifecycleOwner,
+    val providers: MutableList<InputStreamProvider<T>>
+) : AbstractFileBuilder<T, List<File>>(owner) {
 
     /**一次获取所有而且是顺序压缩*/
     override fun get(): MutableList<File> = runBlocking {
@@ -384,7 +458,8 @@ private class MultiRequestBuild<T>(owner: LifecycleOwner, val providers: Mutable
             }.onCompletion {
                 liveData.value = State.Completion
                 //成功和错误回调在后也 可以调前
-                if (it == null) liveData.value = State.Success(result) else liveData.value = State.Error(it)
+                if (it == null) liveData.value = State.Success(result) else liveData.value =
+                    State.Error(it)
             }.onEach {
                 //排序好的结果收集
                 result.add(it)

@@ -101,36 +101,42 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 //                val item = mImages!![0]
 //                Log.d(TAG, "do-> ${item.uri}")
                 Luban.with(this)
-                        .load(mImages!!.map { it.uri })
-                        .ignoreBy(100)
-                        .concurrent(true)
-                        .rename {
-                            Log.d(TAG, "rename $it")
-                            "$it.jpg"
+                    .load(mImages!!.map { it.uri })
+                    .ignoreBy(3 * 1024)
+                    .quality(95)
+                    .concurrent(true)
+                    .rename {
+                        Log.d(TAG, "rename $it")
+                        "$it.jpg"
+                    }
+                    .compressObserver {
+                        onStart = {
+                            //Log.d(TAG, "onStart: ")
+                            mPro?.visibility = View.VISIBLE
                         }
-                        .compressObserver {
-                            onStart = {
-                                //Log.d(TAG, "onStart: ")
-                                mPro?.visibility = View.VISIBLE
-                            }
-                            onCompletion = {
-                                Log.d(TAG, "onCompletion")
-                                mPro?.visibility = View.GONE
-                            }
-                            onSuccess = {
-                                Toast.makeText(this@MainActivity, "file", Toast.LENGTH_LONG).show()
+                        onCompletion = {
+                            Log.d(TAG, "onCompletion")
+                            mPro?.visibility = View.GONE
+                        }
+                        onSuccess = {
+                            Toast.makeText(this@MainActivity, "file", Toast.LENGTH_LONG).show()
 //                                mIv!!.setImageURI(Uri.fromFile(it))
-                            }
-                            onError = { a, _ ->
-                                Log.e(TAG, a.toString())
-                            }
-                        }.launch()
+                        }
+                        onError = { a, _ ->
+                            Log.e(TAG, a.toString())
+                        }
+                    }.launch()
             }
             R.id.select_img -> {
                 val intent = Intent(this, ImageGridActivity::class.java)
                 startActivityForResult(intent, IMAGE_PICKER)
             }
-            R.id.save_img -> mIv!!.saveBitmapToFile(Environment.getExternalStorageDirectory(), 600, 300, true)
+            R.id.save_img -> mIv!!.saveBitmapToFile(
+                Environment.getExternalStorageDirectory(),
+                600,
+                300,
+                true
+            )
             else -> {
             }
         }
@@ -140,7 +146,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == ImagePicker.RESULT_CODE_ITEMS) {
             if (data != null && requestCode == IMAGE_PICKER) {
-                mImages = data.getSerializableExtra(ImagePicker.EXTRA_RESULT_ITEMS) as ArrayList<ImageItem>
+                mImages =
+                    data.getSerializableExtra(ImagePicker.EXTRA_RESULT_ITEMS) as ArrayList<ImageItem>
             } else {
                 Toast.makeText(this, "没有数据", Toast.LENGTH_SHORT).show()
             }
