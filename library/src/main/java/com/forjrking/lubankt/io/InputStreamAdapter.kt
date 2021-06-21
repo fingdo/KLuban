@@ -26,7 +26,7 @@ abstract class InputStreamAdapter<T> : InputStreamProvider<T> {
             inputStream.reset()
         } else {
             inputStream = BufferedInputStreamWrap(openInternal())
-//            inputStream.mark(MARK_READ_LIMIT)
+            inputStream.mark(MARK_READ_LIMIT)
         }
         return inputStream
     }
