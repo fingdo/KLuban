@@ -22,7 +22,7 @@ interface ImgHeaderParser {
     fun getOrientation(input: InputStream): Int
 
     @Throws(IOException::class)
-    fun copyExif(input: Any?, outputFile: File): Boolean
+    fun copyExif(input: InputStream, outputFile: File): Boolean
 
     companion object {
         /**

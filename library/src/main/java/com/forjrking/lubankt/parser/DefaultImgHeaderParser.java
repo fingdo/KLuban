@@ -378,20 +378,10 @@ public class DefaultImgHeaderParser implements ImgHeaderParser {
     }
 
     @Override
-    public boolean copyExif(Object input, @NonNull File outputFile)
+    public boolean copyExif(InputStream input, @NonNull File outputFile)
             throws IOException {
         try {
-            ExifInterface inputExif = null;
-            if (input instanceof String) {
-                inputExif = new ExifInterface((String) input);
-            } else if (input instanceof File) {
-                inputExif = new ExifInterface((File) input);
-            } else if (input instanceof Uri) {
-                inputExif = new ExifInterface(Checker.context.getContentResolver().openInputStream((Uri) input));
-            }
-            if (inputExif == null) {
-                return false;
-            }
+            ExifInterface inputExif = new ExifInterface(input);
             ExifInterface outputExif = new ExifInterface(outputFile);
             Class<ExifInterface> cls = ExifInterface.class;
             Field[] fields = cls.getFields();

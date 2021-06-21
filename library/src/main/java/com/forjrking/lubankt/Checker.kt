@@ -149,13 +149,13 @@ internal object Checker {
         return ImgHeaderParser.UNKNOWN_ORIENTATION
     }
 
-    fun copyExifData(input: Any?, outputFile: File) {
+    fun copyExifData(input: InputStream, outputFile: File) {
         copyExifDataInternal(parsers, input, outputFile)
     }
 
     private fun copyExifDataInternal(
         parsers: List<ImgHeaderParser>,
-        input: Any?,
+        input: InputStream,
         outputFile: File
     ) {
         parsers.forEach { parser ->

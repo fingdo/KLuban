@@ -304,7 +304,7 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                 val compressEngine = CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig)
                 val outFile = compressEngine.compress()
                 if(mCopyExif) {
-                    Checker.copyExifData(stream.src, outFile)
+                    Checker.copyExifData(stream.rewindAndGet(), outFile)
                 }
                 outFile
             } else {
@@ -313,7 +313,7 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                     stream.rewindAndGet().copyTo(fos)
                 }
                 if(mCopyExif) {
-                    Checker.copyExifData(stream.src, outFile)
+                    Checker.copyExifData(stream.rewindAndGet(), outFile)
                 }
                 outFile
             }

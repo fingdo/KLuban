@@ -9,6 +9,7 @@ import androidx.exifinterface.media.ExifInterface;
 import com.bumptech.glide.load.ImageHeaderParser;
 import com.bumptech.glide.load.resource.bitmap.DefaultImageHeaderParser;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -36,7 +37,7 @@ public final class ExifInterfaceImageHeaderParser extends DefaultImgHeaderParser
     }
 
     @Override
-    public boolean copyExif(@NonNull Object input, @NonNull File outputFile)
+    public boolean copyExif(@NonNull InputStream input, @NonNull File outputFile)
             throws IOException {
         return false;
     }
