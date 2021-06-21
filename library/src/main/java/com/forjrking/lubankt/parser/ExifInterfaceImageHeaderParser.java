@@ -35,5 +35,9 @@ public final class ExifInterfaceImageHeaderParser extends DefaultImgHeaderParser
         return result;
     }
 
-
+    @Override
+    public boolean copyExif(@NonNull Object input, @NonNull File outputFile)
+            throws IOException {
+        return false;
+    }
 }

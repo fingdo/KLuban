@@ -1,10 +1,19 @@
 package com.forjrking.lubankt.parser;
 
+import android.net.Uri;
+import android.text.TextUtils;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+import androidx.exifinterface.media.ExifInterface;
+
+import com.forjrking.lubankt.Checker;
 import com.forjrking.lubankt.io.ArrayProvide;
+
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
@@ -49,6 +58,8 @@ public class DefaultImgHeaderParser implements ImgHeaderParser {
     private static final int VP8_HEADER_TYPE_LOSSLESS = 0x0000004C;
     private static final int WEBP_EXTENDED_ALPHA_FLAG = 1 << 4;
     private static final int WEBP_LOSSLESS_ALPHA_FLAG = 1 << 3;
+    private byte[] exifBlock;
+    private int exifStartIndex;
 
     @Override
     public ImageType getType(InputStream is) throws IOException {
@@ -65,6 +76,7 @@ public class DefaultImgHeaderParser implements ImgHeaderParser {
             final int firstTwoBytes = reader.getUInt16();
             // JPEG.
             if (firstTwoBytes == EXIF_MAGIC_NUMBER) {
+                parseJpegExifBlock(reader);
                 return ImageType.JPEG;
             }
 
@@ -365,6 +377,49 @@ public class DefaultImgHeaderParser implements ImgHeaderParser {
                 || imageMagicNumber == INTEL_TIFF_MAGIC_NUMBER;
     }
 
+    @Override
+    public boolean copyExif(Object input, @NonNull File outputFile)
+            throws IOException {
+        try {
+            ExifInterface inputExif = null;
+            if (input instanceof String) {
+                inputExif = new ExifInterface((String) input);
+            } else if (input instanceof File) {
+                inputExif = new ExifInterface((File) input);
+            } else if (input instanceof Uri) {
+                inputExif = new ExifInterface(Checker.context.getContentResolver().openInputStream((Uri) input));
+            }
+            if (inputExif == null) {
+                return false;
+            }
+            ExifInterface outputExif = new ExifInterface(outputFile);
+            Class<ExifInterface> cls = ExifInterface.class;
+            Field[] fields = cls.getFields();
+            for (Field field : fields) {
+                String fieldName = field.getName();
+                if (!TextUtils.isEmpty(fieldName) && fieldName.startsWith("TAG")) {
+                    Object fieldObject = field.get(cls);
+                    if (fieldObject != null) {
+                        String fieldValue = fieldObject.toString();
+                        String attribute = inputExif.getAttribute(fieldValue);
+                        if (attribute != null) {
+                            if (TextUtils.equals(fieldValue, ExifInterface.TAG_ORIENTATION)) {
+                                outputExif.setAttribute(fieldValue, String.valueOf(ExifInterface.ORIENTATION_NORMAL));
+                            } else {
+                                outputExif.setAttribute(fieldValue, attribute);
+                            }
+                        }
+                    }
+                }
+            }
+            outputExif.saveAttributes();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
     private static final class RandomAccessReader {
         private final ByteBuffer data;
 
@@ -414,6 +469,13 @@ public class DefaultImgHeaderParser implements ImgHeaderParser {
          *
          * <p>Throws an {@link EndOfFileException} if an EOF is reached before anything was read.
          */
+        int read(byte[] buffer) throws IOException;
+
+        /**
+         * Reads and returns a byte array.
+         *
+         * <p>Throws an {@link EndOfFileException} if an EOF is reached before anything was read.
+         */
         int read(byte[] buffer, int byteCount) throws IOException;
 
         long skip(long total) throws IOException;
@@ -450,6 +512,16 @@ public class DefaultImgHeaderParser implements ImgHeaderParser {
         @Override
         public int getUInt16() throws IOException {
             return ((int) getUInt8() << 8) | getUInt8();
+        }
+
+        @Override
+        public int read(byte[] buffer) throws IOException {
+            int toRead = buffer.length;
+            int read;
+            while (toRead > 0 && ((read = is.read(buffer, buffer.length - toRead, toRead)) != -1)) {
+                toRead -= read;
+            }
+            return buffer.length - toRead;
         }
 
         @Override
@@ -495,4 +567,75 @@ public class DefaultImgHeaderParser implements ImgHeaderParser {
             return total - toSkip;
         }
     }
+
+    private void parseJpegExifBlock(Reader streamReader) throws IOException {
+        short segmentId, segmentType;
+        int segmentLength;
+        int index = 2;
+        while (true) {
+            segmentId = streamReader.getUInt8();
+
+            if (segmentId != SEGMENT_START_ID) {
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "Unknown segmentId=" + segmentId);
+                }
+                return;
+            }
+
+            segmentType = streamReader.getUInt8();
+
+            if (segmentType == SEGMENT_SOS) {
+                return;
+            } else if (segmentType == MARKER_EOI) {
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
+                    Log.d(TAG, "Found MARKER_EOI in exif segment");
+                }
+                return;
+            }
+
+            // Segment length includes bytes for segment length.
+            segmentLength = streamReader.getUInt16() - 2;
+
+            if (segmentType != EXIF_SEGMENT_TYPE) {
+                //跳过所有的非exif标记块
+                long skipped = streamReader.skip(segmentLength);
+                if (skipped != segmentLength) {
+                    if (Log.isLoggable(TAG, Log.DEBUG)) {
+                        Log.d(TAG, "Unable to skip enough data"
+                                + ", type: " + segmentType
+                                + ", wanted to skip: " + segmentLength
+                                + ", but actually skipped: " + skipped);
+                    }
+                    return;
+                }
+                index += (4 + segmentLength);
+            } else {
+                //找到exif block
+                byte[] segmentData = new byte[segmentLength];
+                int read = streamReader.read(segmentData);
+
+                byte[] block = new byte[2 + 2 + read];
+                block[0] = (byte) SEGMENT_START_ID;
+                block[1] = (byte) EXIF_SEGMENT_TYPE;
+                int length = read + 2;
+                block[2] = (byte) ((length >> 8) & 0xFF);
+                block[3] = (byte) (length & 0xFF);
+
+                if (read != segmentLength) {
+                    if (Log.isLoggable(TAG, Log.DEBUG)) {
+                        Log.d(TAG, "Unable to read segment data"
+                                + ", type: " + segmentType
+                                + ", length: " + segmentLength
+                                + ", actually read: " + read);
+                    }
+                } else {
+                    System.arraycopy(segmentData, 0, block, 4, read);
+                }
+                this.exifBlock = block;
+                this.exifStartIndex = index;
+                return;
+            }
+        }
+    }
+
 }

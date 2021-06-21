@@ -140,6 +140,9 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     //使用并发
     protected var mUseConcurrent = false
 
+    //是否拷贝exif
+    protected var mCopyExif = true
+
     // 忽略压缩大小
     protected var mIgnoreSize = 100 * 1024L
 
@@ -219,6 +222,14 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
         return this
     }
 
+    /**
+     * 是否拷贝exif，默认为true
+     */
+    fun copyExif(copyExif: Boolean): Builder<T, R> {
+        this.mCopyExif = copyExif
+        return this
+    }
+
     companion object {
         //主要作用用于并行执行时候可以限制执行任务个数 防止OOM
         internal val supportDispatcher: ExecutorCoroutineDispatcher
@@ -291,11 +302,18 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
             //判断过滤器 开始压缩
             if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
                 val compressEngine = CompressEngine(stream, outFile, mCompress4Sample, mIgnoreSize, bestQuality, format, decodeConfig)
-                compressEngine.compress()
+                val outFile = compressEngine.compress()
+                if(mCopyExif) {
+                    Checker.copyExifData(stream.src, outFile)
+                }
+                outFile
             } else {
                 //copy文件到临时文件
                 FileOutputStream(outFile).use { fos ->
                     stream.rewindAndGet().copyTo(fos)
+                }
+                if(mCopyExif) {
+                    Checker.copyExifData(stream.src, outFile)
                 }
                 outFile
             }
