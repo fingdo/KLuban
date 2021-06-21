@@ -44,6 +44,10 @@ public class BufferedInputStreamWrap extends FilterInputStream {
         buf = ArrayProvide.get(bufferSize);
     }
 
+    public InputStream getSource(){
+        return in;
+    }
+
     /**
      * Returns an estimated number of bytes that can be read or skipped without blocking for more
      * input. This method returns the number of bytes available in the buffer plus those available in

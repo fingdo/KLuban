@@ -1,5 +1,6 @@
 package com.forjrking.lubankt
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
 import android.media.ExifInterface
@@ -16,6 +17,7 @@ import java.io.IOException
 import java.io.InputStream
 import kotlin.jvm.Throws
 
+@SuppressLint("StaticFieldLeak")
 internal object Checker {
 
     // Right now we're only using this parser for HEIF images, which are only supported on OMR1+.
@@ -42,7 +44,9 @@ internal object Checker {
      */
     fun calculateQuality(context: Context): Int {
         val dm = DisplayMetrics()
-        (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getMetrics(dm)
+        (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getMetrics(
+            dm
+        )
         val density = dm.density
         return if (density > 3f) {
             DEFAULT_LOW_QUALITY
@@ -132,7 +136,10 @@ internal object Checker {
     }
 
     @Throws(IOException::class)
-    private fun getOrientationInternal(parsers: List<ImgHeaderParser>, reader: OrientationReader): Int {
+    private fun getOrientationInternal(
+        parsers: List<ImgHeaderParser>,
+        reader: OrientationReader
+    ): Int {
         parsers.forEach { parser ->
             val orientation = reader.getOrientation(parser)
             if (orientation != ImgHeaderParser.UNKNOWN_ORIENTATION) {
@@ -140,6 +147,22 @@ internal object Checker {
             }
         }
         return ImgHeaderParser.UNKNOWN_ORIENTATION
+    }
+
+    fun copyExifData(input: Any?, outputFile: File) {
+        copyExifDataInternal(parsers, input, outputFile)
+    }
+
+    private fun copyExifDataInternal(
+        parsers: List<ImgHeaderParser>,
+        input: Any?,
+        outputFile: File
+    ) {
+        parsers.forEach { parser ->
+            if (parser.copyExif(input, outputFile)) {
+                return@forEach
+            }
+        }
     }
 
     private interface TypeReader {
@@ -183,15 +206,15 @@ internal object Checker {
     private fun reflectContext(): Context {
         try {
             return Class.forName("android.app.ActivityThread")
-                    .getMethod("currentApplication")
-                    .invoke(null) as Application
+                .getMethod("currentApplication")
+                .invoke(null) as Application
         } catch (e: Exception) {
             e.printStackTrace()
         }
         try {
             return Class.forName("android.app.AppGlobals")
-                    .getMethod("getInitialApplication")
-                    .invoke(null) as Application
+                .getMethod("getInitialApplication")
+                .invoke(null) as Application
         } catch (e: Exception) {
             e.printStackTrace()
         }
