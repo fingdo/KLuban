@@ -132,7 +132,7 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     protected var bestQuality = Checker.calculateQuality(Checker.context)
 
     //输出目录
-    protected var mOutPutDir: String? = Checker.getCacheDir(Checker.context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
+    protected var mOutPutDir: String? = null
 
     // 使用采样率压缩 or 双线性压缩
     protected var mCompress4Sample = true
@@ -283,7 +283,7 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
     protected suspend fun compress(stream: InputStreamProvider<T>): File = withContext(supportDispatcher) {
         return@withContext try {
             if (mOutPutDir.isNullOrEmpty()) {
-                throw IOException("mOutPutDir cannot be null or check permissions")
+                mOutPutDir = Checker.getCacheDir(Checker.context, DEFAULT_DISK_CACHE_DIR)?.absolutePath
             }
             //后缀处理
             val srcStream = stream.rewindAndGet()
