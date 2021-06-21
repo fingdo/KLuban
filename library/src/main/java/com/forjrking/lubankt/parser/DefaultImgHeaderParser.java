@@ -21,7 +21,7 @@ import java.nio.charset.Charset;
 /**
  * A class for parsing the exif orientation and other data from an image header.
  */
-public final class DefaultImgHeaderParser implements ImgHeaderParser {
+public class DefaultImgHeaderParser implements ImgHeaderParser {
 
     // Due to https://code.google.com/p/android/issues/detail?id=97751.
     // TAG needs to be under 23 chars, so "Default" > "Dflt".
@@ -76,7 +76,6 @@ public final class DefaultImgHeaderParser implements ImgHeaderParser {
             final int firstTwoBytes = reader.getUInt16();
             // JPEG.
             if (firstTwoBytes == EXIF_MAGIC_NUMBER) {
-                parseJpegExifBlock(reader);
                 return ImageType.JPEG;
             }
 
@@ -387,7 +386,8 @@ public final class DefaultImgHeaderParser implements ImgHeaderParser {
             } else if (input instanceof File) {
                 inputExif = new ExifInterface((File) input);
             } else if (input instanceof Uri) {
-                inputExif = new ExifInterface(Checker.context.getContentResolver().openInputStream((Uri) input));
+                inputExif = new ExifInterface(Checker.context.getContentResolver().openInputStream((Uri) input),
+                        ExifInterface.STREAM_TYPE_EXIF_DATA_ONLY);
             }
             if (inputExif == null) {
                 return false;

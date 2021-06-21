@@ -1,9 +1,7 @@
 package com.forjrking.lubankt.parser;
 
-import android.os.Build;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.exifinterface.media.ExifInterface;
 
 import com.bumptech.glide.load.ImageHeaderParser;
@@ -13,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 
+
 /**
  * Uses {@link ExifInterface} to parse orientation data.
  *
@@ -21,21 +20,17 @@ import java.io.InputStream;
  * this is a simple way to ensure that HEIF files are oriented correctly on platforms where they're
  * supported.
  */
-public final class ExifInterfaceImageHeaderParser implements ImgHeaderParser {
-
-    @NonNull
-    @Override
-    public ImageType getType(@NonNull InputStream is) {
-        return ImageType.UNKNOWN;
-    }
+public final class ExifInterfaceImageHeaderParser extends DefaultImgHeaderParser {
 
     @Override
-    public int getOrientation(@NonNull InputStream is)
-            throws IOException {
+    public int getOrientation(InputStream is) throws IOException {
+        ImageType type = getType(is);
+        if (type == ImageType.PNG_A || type == ImageType.PNG || type == ImageType.GIF) {
+            //对于一些明显不支持的直接return
+            return ImageHeaderParser.UNKNOWN_ORIENTATION;
+        }
         ExifInterface exifInterface = new ExifInterface(is);
-        int result =
-                exifInterface.getAttributeInt(
-                        ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+        int result = exifInterface.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
         if (result == ExifInterface.ORIENTATION_UNDEFINED) {
             return ImageHeaderParser.UNKNOWN_ORIENTATION;
         }
@@ -43,8 +38,7 @@ public final class ExifInterfaceImageHeaderParser implements ImgHeaderParser {
     }
 
     @Override
-    public boolean copyExif(@NonNull Object input, @NonNull File outputFile)
-            throws IOException {
+    public boolean copyExif(Object input, @NonNull File outputFile) throws IOException {
         return false;
     }
 }
