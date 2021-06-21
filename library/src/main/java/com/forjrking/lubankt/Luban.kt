@@ -362,7 +362,7 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                     if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
                 Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出格式:$format 输出文件:$outFile")
                 //判断过滤器 开始压缩
-                if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length) {
+                if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length / 1024) {
                     val compressEngine = CompressEngine(
                         stream,
                         outFile,
@@ -370,21 +370,18 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                         mIgnoreSize,
                         bestQuality,
                         format,
-                        decodeConfig
+                        decodeConfig,
+                        mCopyExif
                     )
-                    val outFile = compressEngine.compress()
-                    if (mCopyExif) {
-                        Checker.copyExifData(stream.rewindAndGet(), outFile)
-                    }
-                    outFile
+                    compressEngine.compress()
                 } else {
                     //copy文件到临时文件
                     FileOutputStream(outFile).use { fos ->
                         stream.rewindAndGet().copyTo(fos)
                     }
-                    if (mCopyExif) {
-                        Checker.copyExifData(stream.rewindAndGet(), outFile)
-                    }
+//                    if (mCopyExif) {
+//                        Checker.copyExifData(stream.rewindAndGet(), outFile)
+//                    }
                     outFile
                 }
             } finally {

@@ -38,7 +38,7 @@ class CompressEngine constructor(
     private val srcStream: InputStreamProvider<*>, private val resFile: File,
     private val compress4Sample: Boolean, private val rqSize: Long,
     private val quality: Int, private val compressFormat: CompressFormat,
-    private val compressConfig: Bitmap.Config
+    private val compressConfig: Bitmap.Config, private val copyExif: Boolean
 ) {
 
     @WorkerThread
@@ -124,6 +124,9 @@ class CompressEngine constructor(
             FileOutputStream(resFile).use { fos ->
                 bos.writeTo(fos)
                 fos.flush()
+            }
+            if (copyExif) {
+                Checker.copyExifData(srcStream.rewindAndGet(), resFile)
             }
         }
         return resFile
