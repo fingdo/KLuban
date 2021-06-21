@@ -16,6 +16,7 @@ import com.forjrking.lubankt.ext.CompressLiveData
 import com.forjrking.lubankt.ext.CompressResult
 import com.forjrking.lubankt.ext.State
 import com.forjrking.lubankt.ext.compressObserver
+import com.forjrking.lubankt.helper.MD5Helper
 import com.forjrking.lubankt.io.InputStreamAdapter
 import com.forjrking.lubankt.io.InputStreamProvider
 import kotlinx.coroutines.*
@@ -351,10 +352,14 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                 val length = srcStream.available()
                 val type = Checker.getType(srcStream)
                 //组合一个名字给输出文件
-                val cacheName = "${System.nanoTime()}.${type.suffix}"
+                val cacheName = "${MD5Helper.md5Str("${stream.src.toString()}_$length")}.${type.suffix}"
                 val cacheFile = "$mOutPutDir/${mRenamePredicate?.invoke(cacheName) ?: cacheName}"
                 //重命名接口
                 val outFile = File(cacheFile)
+                if (outFile.exists()) {
+                    Checker.logger("缓存文件已存在 输出文件:$outFile")
+                    return@withContext outFile
+                }
                 //如果没有指定format 智能获取解码结果
                 val format = mCompressFormat ?: type.format
                 //图片是否带有透明层
