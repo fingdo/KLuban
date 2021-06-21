@@ -12,7 +12,7 @@ import java.nio.charset.Charset;
 /**
  * A class for parsing the exif orientation and other data from an image header.
  */
-public final class DefaultImgHeaderParser implements ImgHeaderParser {
+public class DefaultImgHeaderParser implements ImgHeaderParser {
 
     // Due to https://code.google.com/p/android/issues/detail?id=97751.
     // TAG needs to be under 23 chars, so "Default" > "Dflt".

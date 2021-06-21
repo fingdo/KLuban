@@ -20,13 +20,7 @@ import java.io.InputStream;
  * this is a simple way to ensure that HEIF files are oriented correctly on platforms where they're
  * supported.
  */
-public final class ExifInterfaceImageHeaderParser implements ImgHeaderParser {
-
-    @NonNull
-    @Override
-    public ImageType getType(@NonNull InputStream is) {
-        return ImageType.UNKNOWN;
-    }
+public final class ExifInterfaceImageHeaderParser extends DefaultImgHeaderParser {
 
     @Override
     public int getOrientation(@NonNull InputStream is)
@@ -40,5 +34,6 @@ public final class ExifInterfaceImageHeaderParser implements ImgHeaderParser {
         }
         return result;
     }
+
 
 }
