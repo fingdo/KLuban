@@ -1,14 +1,17 @@
 package com.forjrking.image
 
+import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.forjrking.lubankt.Luban
 import com.lzy.imagepicker.ImagePicker
@@ -93,6 +96,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 //                }.launch()
         //美如画
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_MEDIA_LOCATION),100)
+        }
     }
 
     override fun onClick(v: View) {
@@ -105,10 +111,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                     .ignoreBy(3 * 1024)
                     .quality(95)
                     .concurrent(true)
-                    .rename {
-                        Log.d(TAG, "rename $it")
-                        "$it.jpg"
-                    }
+//                    .rename {
+//                        Log.d(TAG, "rename $it")
+//                        "${it}_test.jpg"
+//                    }
                     .compressObserver {
                         onStart = {
                             //Log.d(TAG, "onStart: ")

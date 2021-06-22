@@ -6,6 +6,7 @@ import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
 import android.os.Build
 import android.os.Process
+import android.provider.MediaStore
 import androidx.annotation.IntRange
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
@@ -59,7 +60,14 @@ class Luban private constructor(private val owner: LifecycleOwner) {
 
     fun load(path: String) = loadGeneric(path) { FileInputStream(it) }
 
-    fun load(uri: Uri) = loadGeneric(uri) { Checker.context.contentResolver.openInputStream(it)!! }
+    fun load(uri: Uri) = loadGeneric(uri) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val photoUri = MediaStore.setRequireOriginal(it)
+            Checker.context.contentResolver.openInputStream(photoUri)!!
+        } else {
+            Checker.context.contentResolver.openInputStream(it)!!
+        }
+    }
 
     fun load(bitmap: Bitmap) = loadGeneric(bitmap) {
         val os = ByteArrayOutputStream()
@@ -130,7 +138,12 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                             FileInputStream(src as File)
                         }
                         is Uri -> {
-                            Checker.context.contentResolver.openInputStream(src as Uri)!!
+                            val photoUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                MediaStore.setRequireOriginal(src as Uri)
+                            } else {
+                                src as Uri
+                            }
+                            Checker.context.contentResolver.openInputStream(photoUri)!!
                         }
                         is Bitmap -> {
                             val os = ByteArrayOutputStream()
