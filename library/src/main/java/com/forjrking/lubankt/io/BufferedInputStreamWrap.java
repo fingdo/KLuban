@@ -371,7 +371,14 @@ public class BufferedInputStreamWrap extends FilterInputStream {
             pos = count;
             return read;
         }
-        return read + localIn.skip(byteCount - read);
+
+        // We can't skip over the remaining bytes without exceeding the mark limit so there will be no
+        // way to reset to a proper position in the stream.
+        long skipped = localIn.skip(byteCount - read);
+        if (skipped > 0) {
+            markpos = -1;
+        }
+        return read + skipped;
     }
 
     /**
@@ -379,7 +386,7 @@ public class BufferedInputStreamWrap extends FilterInputStream {
      * smaller than the amount of data read after the mark position.
      */
     static class InvalidMarkException extends IOException {
-        private static final long serialVersionUID = -4338378848813561759L;
+        private static final long serialVersionUID = -4338378848813561757L;
 
         InvalidMarkException(String detailMessage) {
             super(detailMessage);

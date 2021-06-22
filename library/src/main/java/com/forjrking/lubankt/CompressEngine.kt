@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Build
 import androidx.annotation.WorkerThread
+import androidx.exifinterface.media.ExifInterface
 import com.forjrking.lubankt.io.ArrayProvide
 import com.forjrking.lubankt.io.InputStreamProvider
 import java.io.ByteArrayOutputStream
@@ -46,6 +47,10 @@ class CompressEngine constructor(
     fun compress(): File {
         //获取jpeg旋转角度
         val angle = Checker.getRotateDegree(srcStream.rewindAndGet())
+        var inputExifInfo : ExifInterface? = null
+        if (copyExif) {
+            inputExifInfo = ExifInterface(srcStream.rewindAndGet())
+        }
         //解析Bitmap
         val options = BitmapFactory.Options()
         //不加载进内存
@@ -125,10 +130,11 @@ class CompressEngine constructor(
                 bos.writeTo(fos)
                 fos.flush()
             }
-            if (copyExif) {
-                Checker.copyExifData(srcStream.rewindAndGet(), resFile)
+            inputExifInfo?.let { exif->
+                Checker.copyExifData(exif, resFile)
             }
         }
+        srcStream.close()
         return resFile
     }
 

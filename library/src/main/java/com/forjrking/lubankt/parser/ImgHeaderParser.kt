@@ -1,6 +1,7 @@
 package com.forjrking.lubankt.parser
 
 import android.graphics.Bitmap
+import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -22,7 +23,7 @@ interface ImgHeaderParser {
     fun getOrientation(input: InputStream): Int
 
     @Throws(IOException::class)
-    fun copyExif(input: InputStream, outputFile: File): Boolean
+    fun copyExif(inputExif: ExifInterface, outputFile: File): Boolean
 
     companion object {
         /**

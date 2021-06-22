@@ -1,9 +1,6 @@
 package com.forjrking.lubankt.parser;
 
-import android.os.Build;
-
 import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import androidx.exifinterface.media.ExifInterface;
 
 import com.bumptech.glide.load.ImageHeaderParser;
@@ -37,7 +34,7 @@ public final class ExifInterfaceImageHeaderParser extends DefaultImgHeaderParser
     }
 
     @Override
-    public boolean copyExif(@NonNull InputStream input, @NonNull File outputFile)
+    public boolean copyExif(@NonNull ExifInterface inputExif, @NonNull File outputFile)
             throws IOException {
         return false;
     }

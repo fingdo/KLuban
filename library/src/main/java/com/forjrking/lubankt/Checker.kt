@@ -3,10 +3,10 @@ package com.forjrking.lubankt
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
-import android.media.ExifInterface
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.WindowManager
+import androidx.exifinterface.media.ExifInterface
 import com.forjrking.lubankt.io.BufferedInputStreamWrap
 import com.forjrking.lubankt.parser.DefaultImgHeaderParser
 import com.forjrking.lubankt.parser.ExifInterfaceImageHeaderParser
@@ -149,17 +149,17 @@ internal object Checker {
         return ImgHeaderParser.UNKNOWN_ORIENTATION
     }
 
-    fun copyExifData(input: InputStream, outputFile: File) {
+    fun copyExifData(input: ExifInterface, outputFile: File) {
         copyExifDataInternal(parsers, input, outputFile)
     }
 
     private fun copyExifDataInternal(
         parsers: List<ImgHeaderParser>,
-        input: InputStream,
+        inputExif: ExifInterface,
         outputFile: File
     ) {
         parsers.forEach { parser ->
-            if (parser.copyExif(input, outputFile)) {
+            if (parser.copyExif(inputExif, outputFile)) {
                 return@forEach
             }
         }
