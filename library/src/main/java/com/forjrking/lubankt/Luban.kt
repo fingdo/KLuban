@@ -1,5 +1,7 @@
 package com.forjrking.lubankt
 
+import android.Manifest
+import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.content.res.AssetFileDescriptor
 import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
@@ -8,6 +10,7 @@ import android.os.Build
 import android.os.Process
 import android.provider.MediaStore
 import androidx.annotation.IntRange
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
@@ -61,7 +64,12 @@ class Luban private constructor(private val owner: LifecycleOwner) {
     fun load(path: String) = loadGeneric(path) { FileInputStream(it) }
 
     fun load(uri: Uri) = loadGeneric(uri) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+            && ContextCompat.checkSelfPermission(
+                Checker.context,
+                Manifest.permission.ACCESS_MEDIA_LOCATION
+            ) == PERMISSION_GRANTED
+        ) {
             val photoUri = MediaStore.setRequireOriginal(it)
             Checker.context.contentResolver.openInputStream(photoUri)!!
         } else {
@@ -365,7 +373,8 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                 val length = srcStream.available()
                 val type = Checker.getType(srcStream)
                 //组合一个名字给输出文件
-                val cacheName = "${MD5Helper.md5Str("${stream.src.toString()}_$length")}.${type.suffix}"
+                val cacheName =
+                    "${MD5Helper.md5Str("${stream.src.toString()}_$length")}.${type.suffix}"
                 val cacheFile = "$mOutPutDir/${mRenamePredicate?.invoke(cacheName) ?: cacheName}"
                 //重命名接口
                 val outFile = File(cacheFile)
