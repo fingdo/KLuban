@@ -37,7 +37,7 @@ import kotlin.math.min
 </lp> */
 class CompressEngine constructor(
     private val srcStream: InputStreamProvider<*>, private val resFile: File,
-    private val compress4Sample: Boolean, private val rqSize: Long,
+    private val compress4Sample: Boolean, private var rqSize: Long,
     private val quality: Int, private val compressFormat: CompressFormat,
     private val compressConfig: Bitmap.Config, private val copyExif: Boolean
 ) {
@@ -104,9 +104,13 @@ class CompressEngine constructor(
         try {//质量压缩开始
             bitmap.compress(compressFormat, quality, stream)
             //PNG等无损格式不支持压缩
-            if (options.inSampleSize <= 1 && options.inPreferredConfig != Bitmap.Config.RGB_565
-                && compressFormat != CompressFormat.PNG
+            if (options.inSampleSize <= 1 && compressFormat != CompressFormat.PNG
             ) {
+                if (options.inPreferredConfig == Bitmap.Config.RGB_565) {
+                    if(srcStream.getFileSize() > 13 * 1024 * 1024L) {
+                        rqSize = 15 * 1024L
+                    }
+                }
                 var tempQuality = quality
                 //耗时由此处触发 每次降低6个点  图像显示效果和大小不能同时兼得 这里还要优化
                 while (stream.size() / 1024 > (rqSize * scale) && tempQuality > 6) {
