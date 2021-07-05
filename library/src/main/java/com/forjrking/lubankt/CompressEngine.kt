@@ -47,7 +47,7 @@ class CompressEngine constructor(
     fun compress(): File {
         //获取jpeg旋转角度
         val angle = Checker.getRotateDegree(srcStream.rewindAndGet())
-        var inputExifInfo : ExifInterface? = null
+        var inputExifInfo: ExifInterface? = null
         if (copyExif) {
             inputExifInfo = ExifInterface(srcStream.rewindAndGet())
         }
@@ -62,7 +62,7 @@ class CompressEngine constructor(
         val height = options.outHeight
         //默认采样率 采样率是2的次幂
         val scale = if (compress4Sample) {
-            options.inSampleSize = computeSampleSize(srcStream.getFileSize())
+            computeSampleSize(options, srcStream.getFileSize())
             1f
         } else {
             options.inSampleSize = 0
@@ -104,7 +104,9 @@ class CompressEngine constructor(
         try {//质量压缩开始
             bitmap.compress(compressFormat, quality, stream)
             //PNG等无损格式不支持压缩
-            if (options.inSampleSize <= 1 && compressFormat != CompressFormat.PNG) {
+            if (options.inSampleSize <= 1 && options.inPreferredConfig != Bitmap.Config.RGB_565
+                && compressFormat != CompressFormat.PNG
+            ) {
                 var tempQuality = quality
                 //耗时由此处触发 每次降低6个点  图像显示效果和大小不能同时兼得 这里还要优化
                 while (stream.size() / 1024 > (rqSize * scale) && tempQuality > 6) {
@@ -130,7 +132,7 @@ class CompressEngine constructor(
                 bos.writeTo(fos)
                 fos.flush()
             }
-            inputExifInfo?.let { exif->
+            inputExifInfo?.let { exif ->
                 Checker.copyExifData(exif, resFile)
             }
         }
@@ -141,16 +143,19 @@ class CompressEngine constructor(
     /**
      * 邻近采样率  核心算法(来自 luban)
      */
-    private fun computeSampleSize(fileSize: Long): Int {
-        return when {
+    private fun computeSampleSize(option: BitmapFactory.Options, fileSize: Long) {
+        when {
             fileSize > 100 * 1024 * 1024L -> { // 大于100M的照片
-                4
+                option.inSampleSize = 4
             }
             fileSize > 40 * 1024 * 1024L -> { // 40~100M的照片
-                2
+                option.inSampleSize = 2
+            }
+            fileSize > 13 * 1024 * 1024L -> { // 13~40M的照片
+                option.inPreferredConfig = Bitmap.Config.RGB_565
             }
             else -> {
-                1
+                option.inPreferredConfig = Bitmap.Config.ARGB_8888
             }
         }
     }
