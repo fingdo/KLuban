@@ -102,7 +102,7 @@ class CompressEngine constructor(
         // 获取解析流
         val stream = ByteArrayOutputStream()
         try {//质量压缩开始
-            bitmap.compress(compressFormat, quality, stream)
+            bitmap.compress(CompressFormat.JPEG, quality, stream)
             //PNG等无损格式不支持压缩
             if (options.inSampleSize <= 1 && compressFormat != CompressFormat.PNG
             ) {
@@ -120,7 +120,7 @@ class CompressEngine constructor(
                         6
                     }
                     stream.reset()
-                    bitmap.compress(compressFormat, tempQuality, stream)
+                    bitmap.compress(CompressFormat.JPEG, tempQuality, stream)
                 }
                 Checker.logger("真实输出质量$tempQuality")
             }

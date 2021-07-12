@@ -23,6 +23,7 @@ import com.forjrking.lubankt.ext.compressObserver
 import com.forjrking.lubankt.helper.MD5Helper
 import com.forjrking.lubankt.io.InputStreamAdapter
 import com.forjrking.lubankt.io.InputStreamProvider
+import com.forjrking.lubankt.parser.ImageType
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.*
@@ -389,7 +390,7 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                     if (type.hasAlpha) Bitmap.Config.ARGB_8888 else Bitmap.Config.RGB_565
                 Checker.logger("源大小:$length 类型:$type 透明层:${type.hasAlpha} 期望质量:${bestQuality} 输出格式:$format 输出文件:$outFile")
                 //判断过滤器 开始压缩
-                if (mCompressionPredicate.invoke(stream.src) && mIgnoreSize < length / 1024) {
+                if (mCompressionPredicate.invoke(stream.src) && (mIgnoreSize < length / 1024 || type == ImageType.UNKNOWN)) {
                     val compressEngine = CompressEngine(
                         stream,
                         outFile,
