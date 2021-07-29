@@ -2,11 +2,11 @@ package com.forjrking.lubankt
 
 import android.Manifest
 import android.content.pm.PackageManager.PERMISSION_GRANTED
-import android.content.res.AssetFileDescriptor
 import android.graphics.Bitmap
 import android.graphics.Bitmap.CompressFormat
 import android.net.Uri
 import android.os.Build
+import android.os.ParcelFileDescriptor
 import android.os.Process
 import android.provider.MediaStore
 import androidx.annotation.IntRange
@@ -103,14 +103,17 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                         (src as File).length()
                     }
                     is Uri -> {
-                        val afd: AssetFileDescriptor? =
-                            Checker.context.contentResolver.openAssetFileDescriptor(
+                        var pfd: ParcelFileDescriptor? = null
+                        try {
+                            pfd = Checker.context.contentResolver.openFileDescriptor(
                                 src as Uri,
                                 "r"
                             )
-                        val fileSize = afd?.length ?: 0L
-                        afd?.close()
-                        fileSize
+                            val fileSize = pfd?.statSize ?: 0
+                            fileSize
+                        } finally {
+                            pfd?.close()
+                        }
                     }
                     is Bitmap -> {
                         (src as Bitmap).byteCount.toLong()
@@ -147,7 +150,12 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                             FileInputStream(src as File)
                         }
                         is Uri -> {
-                            val photoUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val photoUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                                && ContextCompat.checkSelfPermission(
+                                    Checker.context,
+                                    Manifest.permission.ACCESS_MEDIA_LOCATION
+                                ) == PERMISSION_GRANTED
+                            ) {
                                 MediaStore.setRequireOriginal(src as Uri)
                             } else {
                                 src as Uri
@@ -176,14 +184,17 @@ class Luban private constructor(private val owner: LifecycleOwner) {
                             (src as File).length()
                         }
                         is Uri -> {
-                            val afd: AssetFileDescriptor? =
-                                Checker.context.contentResolver.openAssetFileDescriptor(
+                            var pfd: ParcelFileDescriptor? = null
+                            try {
+                                pfd = Checker.context.contentResolver.openFileDescriptor(
                                     src as Uri,
                                     "r"
                                 )
-                            val fileSize = afd?.length ?: 0L
-                            afd?.close()
-                            fileSize
+                                val fileSize = pfd?.statSize ?: 0
+                                fileSize
+                            } finally {
+                                pfd?.close()
+                            }
                         }
                         is Bitmap -> {
                             (src as Bitmap).byteCount.toLong()
