@@ -391,8 +391,12 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                 //重命名接口
                 val outFile = File(cacheFile)
                 if (outFile.exists()) {
-                    Checker.logger("缓存文件已存在 输出文件:$outFile")
-                    return@withContext outFile
+                    if (outFile.length() > 0) {
+                        Checker.logger("缓存文件已存在 输出文件:$outFile")
+                        return@withContext outFile
+                    } else {
+                        outFile.delete()
+                    }
                 }
                 //如果没有指定format 智能获取解码结果
                 val format = mCompressFormat ?: type.format
