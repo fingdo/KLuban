@@ -390,12 +390,14 @@ public class DefaultImgHeaderParser implements ImgHeaderParser {
                     Object fieldObject = field.get(cls);
                     if (fieldObject != null) {
                         String fieldValue = fieldObject.toString();
-                        String attribute = inputExif.getAttribute(fieldValue);
-                        if (attribute != null) {
-                            if (TextUtils.equals(fieldValue, ExifInterface.TAG_ORIENTATION)) {
-                                outputExif.setAttribute(fieldValue, String.valueOf(ExifInterface.ORIENTATION_NORMAL));
-                            } else {
-                                outputExif.setAttribute(fieldValue, attribute);
+                        if (!TextUtils.equals("Xmp", fieldValue)) {
+                            String attribute = inputExif.getAttribute(fieldValue);
+                            if (attribute != null) {
+                                if (TextUtils.equals(fieldValue, ExifInterface.TAG_ORIENTATION)) {
+                                    outputExif.setAttribute(fieldValue, String.valueOf(ExifInterface.ORIENTATION_NORMAL));
+                                } else {
+                                    outputExif.setAttribute(fieldValue, attribute);
+                                }
                             }
                         }
                     }
