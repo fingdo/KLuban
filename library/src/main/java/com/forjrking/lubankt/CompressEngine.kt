@@ -7,6 +7,7 @@ import android.graphics.Matrix
 import android.os.Build
 import androidx.annotation.WorkerThread
 import androidx.exifinterface.media.ExifInterface
+import com.forjrking.lubankt.cache.TotalSizeLruDiskUsage
 import com.forjrking.lubankt.io.ArrayProvide
 import com.forjrking.lubankt.io.InputStreamProvider
 import java.io.ByteArrayOutputStream
@@ -37,7 +38,7 @@ import kotlin.math.min
 </lp> */
 class CompressEngine constructor(
     private val srcStream: InputStreamProvider<*>, private val resFile: File,
-    private val compress4Sample: Boolean, private var rqSize: Long,
+    private val compress4Sample: Boolean, private var rqSize: Long, private var maxCacheSize: Long,
     private val quality: Int, private val compressFormat: CompressFormat,
     private val compressConfig: Bitmap.Config, private val copyExif: Boolean
 ) {
@@ -107,7 +108,7 @@ class CompressEngine constructor(
             if (options.inSampleSize <= 1 && compressFormat != CompressFormat.PNG
             ) {
                 if (options.inPreferredConfig == Bitmap.Config.RGB_565) {
-                    if(srcStream.getFileSize() > 13 * 1024 * 1024L) {
+                    if (srcStream.getFileSize() > 13 * 1024 * 1024L) {
                         rqSize = 15 * 1024L
                     }
                 }
@@ -141,6 +142,9 @@ class CompressEngine constructor(
             }
         }
         srcStream.close()
+        val diskCache = TotalSizeLruDiskUsage(maxCacheSize)
+        diskCache.touch(resFile)
+
         return resFile
     }
 

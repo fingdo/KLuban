@@ -16,6 +16,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.forjrking.lubankt.cache.TotalSizeLruDiskUsage
 import com.forjrking.lubankt.ext.CompressLiveData
 import com.forjrking.lubankt.ext.CompressResult
 import com.forjrking.lubankt.ext.State
@@ -249,6 +250,9 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     //压缩过滤器
     protected var mCompressionPredicate: ((T) -> Boolean) = { true }
 
+    // 最大缓存大小
+    protected var mMaxCacheSize = 1024L * 1024L * 1024L
+
 
     fun filter(predicate: (T) -> Boolean): Builder<T, R> {
         mCompressionPredicate = predicate
@@ -297,10 +301,18 @@ abstract class Builder<T, R>(private val owner: LifecycleOwner) {
     }
 
     /**
-     * 大小忽略  默认 100kb
+     * 大小忽略  默认 100kb ，单位kb
      */
     fun ignoreBy(size: Long): Builder<T, R> {
         this.mIgnoreSize = size
+        return this
+    }
+
+    /**
+     * 最大cache大小  默认 1G  单位b
+     */
+    fun maxCacheSize(size: Long): Builder<T, R> {
+        this.mMaxCacheSize = size
         return this
     }
 
@@ -411,6 +423,7 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
                         outFile,
                         mCompress4Sample,
                         mIgnoreSize,
+                        mMaxCacheSize,
                         bestQuality,
                         format,
                         decodeConfig,
@@ -425,6 +438,8 @@ private abstract class AbstractFileBuilder<T, R>(owner: LifecycleOwner) : Builde
 //                    if (mCopyExif) {
 //                        Checker.copyExifData(stream.rewindAndGet(), outFile)
 //                    }
+                    val diskCache = TotalSizeLruDiskUsage(mMaxCacheSize)
+                    diskCache.touch(outFile)
                     outFile
                 }
             } finally {

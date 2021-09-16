@@ -1,12 +1,11 @@
 package com.forjrking.image
 
 import android.Manifest
+import android.content.ContentProviderClient
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
-import android.os.Environment
+import android.os.*
 import android.util.Log
 import android.view.View
 import android.widget.ProgressBar
@@ -27,6 +26,31 @@ import java.io.File
 class MainActivity : AppCompatActivity(), View.OnClickListener {
     private var mImages: ArrayList<ImageItem>? = null
     private var mIv: CropImageView? = null
+    private lateinit var uri: Uri
+    private val mHandler = object : Handler(Looper.getMainLooper()) {
+        override fun handleMessage(msg: Message) {
+            super.handleMessage(msg)
+            if (msg.what == 0) {
+                Log.e("checkFile", "文件是否存在:${checkExist()}")
+                sendEmptyMessageDelayed(0, 2000L)
+            }
+        }
+    }
+
+    private fun checkExist(): Boolean {
+        var providerClient: ContentProviderClient? = null
+        var fileDescriptor: ParcelFileDescriptor? = null
+        try {
+            providerClient = contentResolver.acquireContentProviderClient(uri)
+            fileDescriptor = providerClient?.openFile(uri, "r")
+            return fileDescriptor?.statSize ?: 0 > 0L
+        } catch (e: Exception) {
+            return false
+        } finally {
+            providerClient?.close()
+            fileDescriptor?.close()
+        }
+    }
 
     private var mPro: ProgressBar? = null
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,18 +121,27 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         //美如画
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_MEDIA_LOCATION),100)
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_MEDIA_LOCATION), 100)
         }
     }
+
 
     override fun onClick(v: View) {
         when (v.id) {
             R.id.compress_img -> if (mImages != null) {
-//                val item = mImages!![0]
-//                Log.d(TAG, "do-> ${item.uri}")
+                uri = mImages!![0].uri
+//                mHandler.sendEmptyMessage(0)
+//                val intent = Intent(this, TestService::class.java)
+//                intent.putExtra("data", mImages!![0].uri.toString())
+//                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                    startService(intent)
+//                }
+                val item = mImages!![0]
+                Log.d(TAG, "do-> ${item.uri}")
                 Luban.with(this)
                     .load(mImages!!.map { it.uri })
-                    .ignoreBy(3 * 1024)
+                    .ignoreBy(3 * 1024L)
+                    .maxCacheSize(30 * 1024 * 1024L)
                     .quality(95)
                     .concurrent(true)
 //                    .rename {
