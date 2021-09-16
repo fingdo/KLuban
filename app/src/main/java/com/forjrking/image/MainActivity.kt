@@ -136,6 +136,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 //                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 //                    startService(intent)
 //                }
+                
                 val item = mImages!![0]
                 Log.d(TAG, "do-> ${item.uri}")
                 Luban.with(this)
